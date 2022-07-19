@@ -31,6 +31,8 @@ from typing import Tuple, Optional, List, Dict, Any
 
 # For json.dumps, orjson is magnitudes faster than ujson, but it is harder to
 # compile due to Rust dependency. Since the output is the same, we support all modules.
+
+
 try:
     import orjson as json
 except ImportError:
@@ -38,6 +40,7 @@ except ImportError:
         import ujson as json
     except ImportError:
         import json
+
 
 import sabnzbd
 from sabnzbd.constants import (
@@ -1050,7 +1053,8 @@ def report(error: Optional[str] = None, keyword: str = "value", data: Any = None
     If no error and no data, only a status report is made.
     Else, a data report is made (optional 'keyword' for outer XML section).
     """
-    output = cherrypy.request.params.get("output")
+
+    output = "json"
     if output == "json":
         content = "application/json;charset=UTF-8"
         if error:
@@ -1062,8 +1066,8 @@ def report(error: Optional[str] = None, keyword: str = "value", data: Any = None
                 info = data
             else:
                 info = {keyword: data}
-
-        response = utob(json.dumps(info))
+        response = info
+        # response = utob(json.dumps(info))
 
     elif output == "xml":
         if not keyword:

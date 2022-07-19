@@ -17,6 +17,7 @@
 
 import sys
 
+
 # Trick to show a better message on older Python
 # releases that don't support walrus operator
 if Python_38_is_required_to_run_SABnzbd := sys.hexversion < 0x03080000:
@@ -39,6 +40,7 @@ import ssl
 import time
 import re
 import gc
+import uvicorn
 from typing import List, Dict, Any
 
 try:
@@ -1439,19 +1441,27 @@ def main():
 
     sabnzbd.cfg.log_level.callback(guard_loglevel)
 
-    try:
-        cherrypy.engine.start()
-    except:
-        # Since the webserver is started by cherrypy in a separate thread, we can't really catch any
-        # start-up errors. This try/except only catches very few errors, the rest is only shown in the console.
-        logging.error(T("Failed to start web-interface: "), exc_info=True)
-        abort_and_show_error(browserhost, cherryport)
-
     # Create a record of the active cert/key/chain files, for use with config.create_config_backup()
     if enable_https:
         for setting in CONFIG_BACKUP_HTTPS.values():
             if full_path := getattr(sabnzbd.cfg, setting).get_path():
                 sabnzbd.CONFIG_BACKUP_HTTPS_OK.append(full_path)
+
+    # uvicorn_config = uvicorn.Config(sabnzbd.interface.app, host=cherryhost, port=cherryport, log_level="info")
+    # server = Server(config=uvicorn_config)
+    # server.run().
+
+    server_config = uvicorn.Config(sabnzbd.interface.app, host=cherryhost, port=cherryport, log_level="info")
+    sabnzbd.interface.WEB_SERVER = sabnzbd.interface.ThreadedServer(config=server_config)
+    sabnzbd.interface.WEB_SERVER.run_in_thread()
+
+    # try:
+    #     cherrypy.engine.start()
+    # except:
+    #     # Since the webserver is started by cherrypy in a separate thread, we can't really catch any
+    #     # start-up errors. This try/except only catches very few errors, the rest is only shown in the console.
+    #     logging.error(T("Failed to start web-interface: "), exc_info=True)
+    #     abort_and_show_error(browserhost, cherryport)
 
     if sabnzbd.WIN32:
         if enable_https:
@@ -1624,6 +1634,7 @@ def main():
     notifier.send_notification("SABnzbd", T("SABnzbd shutdown finished"), "startup")
     logging.info("Leaving SABnzbd")
     sabnzbd.pid_file()
+    sabnzbd.interface.WEB_SERVER.stop()
 
     try:
         sys.stderr.flush()
