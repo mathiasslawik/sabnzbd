@@ -2171,9 +2171,6 @@ class ThreadedServer(uvicorn.Server):
         self.thread.join()
 
 
-WEB_SERVER: Optional[ThreadedServer] = None
-
-
 INTERFACE_ROUTES.extend(
     [
         Mount("/static", app=StaticFiles(directory="interfaces/Glitter/templates/static"), name="static"),

@@ -1447,21 +1447,22 @@ def main():
             if full_path := getattr(sabnzbd.cfg, setting).get_path():
                 sabnzbd.CONFIG_BACKUP_HTTPS_OK.append(full_path)
 
-    # uvicorn_config = uvicorn.Config(sabnzbd.interface.app, host=cherryhost, port=cherryport, log_level="info")
-    # server = Server(config=uvicorn_config)
-    # server.run().
+    # Catch logging using SABnzbd handlers
+    # Format: https://github.com/encode/uvicorn/blob/d43afed1cfa018a85c83094da8a2dd29f656d676/uvicorn/config.py#L82-L114
+    uvicorn_logging_config = {
+        "version": 1,
+        "loggers": {
+            "uvicorn": {"propagate": True},
+            "uvicorn.error": {"propagate": True},
+            "uvicorn.access": {"propagate": True},
+        },
+    }
 
-    server_config = uvicorn.Config(sabnzbd.interface.app, host=cherryhost, port=cherryport, log_level="info")
-    sabnzbd.interface.WEB_SERVER = sabnzbd.interface.ThreadedServer(config=server_config)
-    sabnzbd.interface.WEB_SERVER.run_in_thread()
-
-    # try:
-    #     cherrypy.engine.start()
-    # except:
-    #     # Since the webserver is started by cherrypy in a separate thread, we can't really catch any
-    #     # start-up errors. This try/except only catches very few errors, the rest is only shown in the console.
-    #     logging.error(T("Failed to start web-interface: "), exc_info=True)
-    #     abort_and_show_error(browserhost, cherryport)
+    server_config = uvicorn.Config(
+        sabnzbd.interface.app, host=cherryhost, port=cherryport, log_config=uvicorn_logging_config
+    )
+    sabnzbd.WEB_SERVER = sabnzbd.interface.ThreadedServer(config=server_config)
+    sabnzbd.WEB_SERVER.run_in_thread()
 
     if sabnzbd.WIN32:
         if enable_https:
@@ -1634,7 +1635,7 @@ def main():
     notifier.send_notification("SABnzbd", T("SABnzbd shutdown finished"), "startup")
     logging.info("Leaving SABnzbd")
     sabnzbd.pid_file()
-    sabnzbd.interface.WEB_SERVER.stop()
+    sabnzbd.WEB_SERVER.stop()
 
     try:
         sys.stderr.flush()
